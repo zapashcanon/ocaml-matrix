@@ -5,6 +5,15 @@ type remote = {user: string; password: string; server: string}
 
 let ( let** ) = Lwt_result.bind
 
+let get_stuff ~job ctx room_id =
+  Current.Job.log job "Querying `%s`" room_id;
+  let open Matrix_ctos.Room.Resolve_alias in
+  let open Client in
+  Client.Http.get ~job ~pool:ctx.pool ctx.server
+    (Fmt.str "/_matrix/client/r0/rooms/%s/messages" room_id)
+    None Response.encoding None
+  >|= fun x -> x
+
 let main {user; password; server} room message =
   let switch = Current.Switch.create ~label:"job" () in
   let config = Current.Config.v () in
@@ -41,11 +50,16 @@ let main {user; password; server} room message =
       topic= "managed by matrix_current";
       power_level_content_override= None;
     } in
+  Printf.printf "DILLE1\n";
   let** room_id = Client.get_room ~job ~alias:room ~settings client in
+  Printf.printf "DILLE2\n";
   let message =
     Matrix_common.Events.Event_content.Message.(
       Text (Text.make ~body:message ())) in
-  Client.post ~job ~room_id client message
+  Printf.printf "DILLE3\n";
+  let _ = Client.post ~job ~room_id client message in
+  let s = Client.get_stuff ~job client room_id in
+  Printf.printf "get_stuff: `%s`@." s
 
 let run a b c =
   match Lwt_main.run (main a b c) with

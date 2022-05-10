@@ -218,7 +218,7 @@ let create_room
        ?power_level_content_override ())
     Request.encoding Response.encoding auth_token
 
-let update_room
+let _update_room
     ~job
     ~pool
     server
@@ -257,11 +257,11 @@ let get_room ~job ~alias ~settings ctx =
   let* existing_room_alias =
     Lwt.catch
       (fun () ->
-        let+ alias =
-          resolve_alias ~job ~pool ctx.server
-            ("#" ^ alias ^ ":" ^ ctx.server.host) in
+        let+ alias = resolve_alias ~job ~pool ctx.server alias in
         Room.Resolve_alias.Response.get_room_id alias)
-      (fun _ -> Lwt.return_none) in
+      (fun e ->
+        ignore (raise e);
+        Lwt.return_none) in
   let+ room_id =
     match existing_room_alias with
     | None ->
@@ -271,9 +271,9 @@ let get_room ~job ~alias ~settings ctx =
     | Some room_id ->
       Current.Job.log job
         "Room already exists, making sure it has the correct settings.";
-      let+ () =
-        update_room ~job ~pool ctx.server (Some auth_token) room_id settings
-      in
-      room_id in
+      (* let+ () =
+           update_room ~job ~pool ctx.server (Some auth_token) room_id settings
+         in *)
+      Lwt.return room_id in
   Current.Job.log job "Room id: %s" room_id;
   Ok room_id
